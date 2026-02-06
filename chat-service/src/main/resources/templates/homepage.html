@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Chat Home</title>
+    <meta charset="UTF-8" />
+</head>
+<body>
+<h1>Welcome, <span th:text="${username}">User</span>!</h1>
+<h2>Search for a user to chat with:</h2>
+
+<!-- Search input with onkeypress event for Enter key -->
+<input type="text" id="searchQuery" placeholder="Enter name or email"
+       onkeypress="if(event.key === 'Enter') searchUsers()" />
+<button onclick="searchUsers()">Search</button>
+
+<!-- Div to display search results -->
+<div id="searchResults"></div>
+
+<script th:inline="javascript">
+    var username = /*[[${username}]]*/ "User";
+
+
+    /*<![CDATA[*/
+    function searchUsers() {
+        var query = document.getElementById("searchQuery").value;
+        if (!query) {
+            return;
+        }
+        // Call the /chat/search endpoint which returns a JSON array of User objects.
+        fetch('/chat/search?query=' + encodeURIComponent(query))
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                var resultsDiv = document.getElementById("searchResults");
+                resultsDiv.innerHTML = ""; // Clear previous results
+                if (data.length === 0) {
+                    resultsDiv.innerHTML = "<p>No users found.</p>";
+                    return;
+                }
+                // Create a list of clickable links
+                var ul = document.createElement("ul");
+                data.forEach(function(user) {
+                    if (username !== user.email) {
+
+                        var li = document.createElement("li");
+                        var a = document.createElement("a");
+                        // Redirect to /chat/private?recipient=<user.email>
+                        a.href = '/chat/private?recipient=' + encodeURIComponent(user.email);
+                        a.textContent = user.name + " (" + user.email + ")";
+                        li.appendChild(a);
+                        ul.appendChild(li);
+                    }
+                });
+                resultsDiv.appendChild(ul);
+            })
+            .catch(function(error) {
+                console.error('Error fetching search results:', error);
+            });
+    }
+    /*]]>*/
+</script>
+</body>
+</html>

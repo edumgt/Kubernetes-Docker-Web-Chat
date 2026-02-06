@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Chat - Real Time Chat Application</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .user-card {
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<!-- Inside your existing navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold" href="#">Real Time Chat Application</a>
+
+    <div class="collapse navbar-collapse justify-content-end">
+      <ul class="navbar-nav mb-2 mb-lg-0">
+        <li class="nav-item">
+          <a class="nav-link" href="/chat/public">Public Chat</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/profile">Profile</a>
+        </li>
+        <li class="nav-item">
+          <a class="btn btn-light text-primary ms-2" href="/auth/logout">Logout</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+
+<!-- Main Content -->
+<div class="container my-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+
+      <!-- Search Bar -->
+      <div class="mb-4">
+        <input type="text" class="form-control" id="searchQuery" placeholder="Search users...">
+      </div>
+
+      <!-- Loading Spinner -->
+      <div id="loadingSpinner" class="text-center mb-3" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+      </div>
+
+      <!-- Search Results -->
+      <div id="searchResults"></div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Inline JavaScript -->
+
+<script th:inline="javascript">
+  var username = /*[[${username}]]*/ "User";
+  const DEFAULT_IMG = "https://media.pitchfork.com/photos/5c7d4c1b4101df3df85c41e5/1:1/w_800,h_800,c_limit/Dababy_BabyOnBaby.jpg";
+
+  let debounceTimer;
+
+  document.getElementById("searchQuery").addEventListener("input", function () {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      searchUsers();
+    }, 300);
+  });
+
+  function searchUsers() {
+    const query = document.getElementById("searchQuery").value.trim();
+    const resultsDiv = document.getElementById("searchResults");
+    const spinner = document.getElementById("loadingSpinner");
+
+    resultsDiv.innerHTML = "";
+    if (!query) return;
+
+    spinner.style.display = "block";
+
+    fetch('/chat/search?query=' + encodeURIComponent(query))
+            .then(response => response.json())
+            .then(data => {
+              spinner.style.display = "none";
+
+              if (data.length === 0) {
+                resultsDiv.innerHTML = '<div class="alert alert-warning">No users found.</div>';
+                return;
+              }
+
+              data.forEach(user => {
+                if (username !== user.email) {
+                  fetch('/profile/' + encodeURIComponent(user.email))
+                          .then(resp => {
+                            if (!resp.ok) throw new Error("No profile");
+                            return resp.json();
+                          })
+                          .then(profile => {
+                            renderUserCard(
+                                    profile.displayName || user.email,
+                                    profile.profilePicUrl || DEFAULT_IMG,
+                                    user.email
+                            );
+                          })
+                          .catch(() => {
+                            renderUserCard(user.email, DEFAULT_IMG, user.email);
+                          });
+                }
+              });
+            })
+            .catch(error => {
+              spinner.style.display = "none";
+              console.error('Error fetching search results:', error);
+              resultsDiv.innerHTML = '<div class="alert alert-danger">Something went wrong. Please try again later.</div>';
+            });
+  }
+
+  function renderUserCard(name, imgUrl, email) {
+    const resultsDiv = document.getElementById("searchResults");
+
+    const card = document.createElement("div");
+    card.className = "card mb-2 user-card";
+    card.onclick = () => window.location.href = '/chat/private?recipient=' + encodeURIComponent(email);
+
+    const row = document.createElement("div");
+    row.className = "row g-0 align-items-center";
+
+    const imgCol = document.createElement("div");
+    imgCol.className = "col-auto";
+
+    const img = document.createElement("img");
+    img.src = imgUrl;
+    img.alt = "Profile Pic";
+    img.className = "rounded-circle m-2";
+    img.style.width = "50px";
+    img.style.height = "50px";
+    img.style.objectFit = "cover";
+
+    imgCol.appendChild(img);
+
+    const textCol = document.createElement("div");
+    textCol.className = "col";
+
+    const cardBody = document.createElement("div");
+    cardBody.className = "card-body py-2";
+
+    const nameElem = document.createElement("h6");
+    nameElem.className = "card-title mb-0";
+    nameElem.textContent = name;
+
+    const emailElem = document.createElement("p");
+    emailElem.className = "card-text text-muted small mb-0";
+    emailElem.textContent = email;
+
+    cardBody.appendChild(nameElem);
+    cardBody.appendChild(emailElem);
+    textCol.appendChild(cardBody);
+
+    row.appendChild(imgCol);
+    row.appendChild(textCol);
+    card.appendChild(row);
+
+    resultsDiv.appendChild(card);
+  }
+</script>
+
+
+</body>
+</html>

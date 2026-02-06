@@ -1,0 +1,31 @@
+server:
+  port: 9999
+  use-forward-headers: true
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: chat-service
+          uri: lb://chat-service
+          predicates:
+            - Path=/chat/**
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/auth/**
+        - id: profile-service
+          uri: lb://profile-service
+          predicates:
+            - Path=/profile/**
+
+      forwarded:
+        enabled: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/
+
