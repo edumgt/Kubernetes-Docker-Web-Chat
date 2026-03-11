@@ -1,92 +1,107 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Profile - Real Time Chat Application</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    .profile-pic-preview {
-      width: 100px;
-      height: 100px;
-      object-fit: cover;
-      border-radius: 50%;
-      border: 2px solid #ccc;
-    }
-  </style>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Fraunces', 'serif'],
+            body: ['"Space Grotesk"', 'sans-serif']
+          },
+          colors: {
+            tide: '#0f766e',
+            ember: '#ea580c'
+          }
+        }
+      }
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
-<body>
+<body class="font-body min-h-screen bg-[radial-gradient(circle_at_top,_#fff7ed_0%,_#f8fafc_45%,_#ecfeff_100%)] text-slate-900">
+<div class="relative min-h-screen overflow-x-hidden">
+  <div class="pointer-events-none absolute -left-20 top-20 h-56 w-56 rounded-full bg-ember/20 blur-3xl"></div>
+  <div class="pointer-events-none absolute right-0 top-1/3 h-72 w-72 rounded-full bg-tide/20 blur-3xl"></div>
 
-<!-- Navbar -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-  <div class="container-fluid">
-    <a class="navbar-brand fw-bold" href="/chat">Real Time Chat Application</a>
+  <header class="relative border-b border-slate-200/60 bg-white/70 backdrop-blur">
+    <nav class="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+      <a href="/chat" class="font-display text-2xl text-slate-900">Realtime Chat</a>
+      <div class="flex flex-wrap items-center gap-2">
+        <a href="/chat" class="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-tide/60 hover:text-tide">Direct Messages</a>
+        <a href="/chat/public" class="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-tide/60 hover:text-tide">Public Room</a>
+        <a href="/auth/logout" class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800">Logout</a>
+      </div>
+    </nav>
+  </header>
 
-    <div class="collapse navbar-collapse justify-content-end">
-      <ul class="navbar-nav mb-2 mb-lg-0">
-        <li class="nav-item">
-          <a class="nav-link" href="/chat/public">Public Chat</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="/profile">Profile</a>
-        </li>
-        <li class="nav-item">
-          <a class="btn btn-light text-primary ms-2" href="/auth/logout">Logout</a>
-        </li>
-      </ul>
-    </div>
-  </div>
-</nav>
+  <main class="relative mx-auto w-full max-w-6xl px-4 py-8 sm:px-8 sm:py-10">
+    <section class="mx-auto max-w-2xl rounded-3xl border border-white/70 bg-white/85 p-6 shadow-xl shadow-slate-300/40 backdrop-blur sm:p-8">
+      <p class="text-xs font-semibold uppercase tracking-[0.13em] text-tide">Profile Settings</p>
+      <h1 class="mt-2 font-display text-3xl text-slate-900 sm:text-4xl">Edit Your Profile</h1>
+      <p class="mt-3 text-sm leading-6 text-slate-600">
+        저장 후 채팅 화면에서 표시 이름과 프로필 이미지가 바로 반영됩니다.
+      </p>
 
-<div class="container my-5">
-  <div class="row justify-content-center">
-    <div class="col-md-8 col-lg-6">
-      <h2 class="fw-bold mb-4 text-center">Edit Profile</h2>
-
-      <form th:action="@{/profile}" method="post">
-        <!-- Hidden email field -->
+      <form th:action="@{/profile}" method="post" class="mt-8 space-y-6">
         <input type="hidden" th:name="email" th:value="${username}" />
 
-        <!-- Display Name -->
-        <div class="mb-3">
-          <label for="displayName" class="form-label">Display Name</label>
-          <input type="text" class="form-control" id="displayName" name="displayName"
-                 th:value="${profile.displayName}" required>
+        <div>
+          <label for="displayName" class="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Display Name</label>
+          <input
+                  type="text"
+                  id="displayName"
+                  name="displayName"
+                  th:value="${profile.displayName}"
+                  required
+                  class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-tide/70 focus:ring-2 focus:ring-tide/20"
+          >
         </div>
 
-        <!-- Profile Picture Section -->
-        <div class="mb-4">
-          <label for="profilePicUrl" class="form-label">Profile Picture</label>
-          <div class="d-flex align-items-center gap-3">
+        <div>
+          <label for="profilePicUrl" class="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Profile Image URL</label>
+          <div class="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-center">
             <img
                     th:src="${profile.profilePicUrl != null && !profile.profilePicUrl.isEmpty() ? profile.profilePicUrl : 'https://media.pitchfork.com/photos/5c7d4c1b4101df3df85c41e5/1:1/w_800,h_800,c_limit/Dababy_BabyOnBaby.jpg'}"
                     alt="Profile Picture"
-                    class="profile-pic-preview"
                     id="profilePicPreview"
+                    class="h-24 w-24 rounded-2xl object-cover ring-4 ring-slate-100"
             >
-            <input type="url" class="form-control" id="profilePicUrl" name="profilePicUrl"
-                   th:value="${profile.profilePicUrl}" required>
+            <input
+                    type="url"
+                    id="profilePicUrl"
+                    name="profilePicUrl"
+                    th:value="${profile.profilePicUrl}"
+                    required
+                    class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-tide/70 focus:ring-2 focus:ring-tide/20"
+            >
           </div>
         </div>
 
-        <!-- Submit -->
-        <div class="d-grid">
-          <button type="submit" class="btn btn-primary">Save Changes</button>
-        </div>
+        <button type="submit" class="w-full rounded-2xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">
+          Save Changes
+        </button>
       </form>
-
-    </div>
-  </div>
+    </section>
+  </main>
 </div>
 
-<!-- Optional JS to live-preview updated URL -->
 <script>
   const picInput = document.getElementById("profilePicUrl");
   const picPreview = document.getElementById("profilePicPreview");
+  const fallbackImage = "https://media.pitchfork.com/photos/5c7d4c1b4101df3df85c41e5/1:1/w_800,h_800,c_limit/Dababy_BabyOnBaby.jpg";
 
-  picInput.addEventListener("input", () => {
-    picPreview.src = picInput.value || "https://media.pitchfork.com/photos/5c7d4c1b4101df3df85c41e5/1:1/w_800,h_800,c_limit/Dababy_BabyOnBaby.jpg";
-  });
+  if (picInput && picPreview) {
+    picInput.addEventListener("input", () => {
+      picPreview.src = picInput.value || fallbackImage;
+    });
+  }
 </script>
-
 </body>
 </html>

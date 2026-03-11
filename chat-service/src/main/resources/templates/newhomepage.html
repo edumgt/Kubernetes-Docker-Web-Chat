@@ -1,68 +1,106 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Chat - Real Time Chat Application</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Fraunces', 'serif'],
+            body: ['"Space Grotesk"', 'sans-serif']
+          },
+          colors: {
+            ink: '#0f172a',
+            tide: '#0f766e',
+            ember: '#ea580c',
+            cloud: '#ecfeff'
+          },
+          boxShadow: {
+            panel: '0 20px 50px -30px rgba(15, 23, 42, 0.45)'
+          }
+        }
+      }
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
-    .user-card {
-      cursor: pointer;
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in-up {
+      animation: fadeInUp 0.35s ease-out;
     }
   </style>
 </head>
-<body>
+<body class="font-body min-h-screen bg-[radial-gradient(circle_at_top,_#fff7ed_0%,_#f8fafc_45%,_#ecfeff_100%)] text-ink">
+<div class="relative min-h-screen overflow-x-hidden">
+  <div class="pointer-events-none absolute -left-20 top-20 h-56 w-56 rounded-full bg-ember/20 blur-3xl"></div>
+  <div class="pointer-events-none absolute right-0 top-1/3 h-72 w-72 rounded-full bg-tide/20 blur-3xl"></div>
 
-<!-- Navbar -->
-<!-- Inside your existing navbar -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-  <div class="container-fluid">
-    <a class="navbar-brand fw-bold" href="#">Real Time Chat Application</a>
-
-    <div class="collapse navbar-collapse justify-content-end">
-      <ul class="navbar-nav mb-2 mb-lg-0">
-        <li class="nav-item">
-          <a class="nav-link" href="/chat/public">Public Chat</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="/profile">Profile</a>
-        </li>
-        <li class="nav-item">
-          <a class="btn btn-light text-primary ms-2" href="/auth/logout">Logout</a>
-        </li>
-      </ul>
-    </div>
-  </div>
-</nav>
-
-
-<!-- Main Content -->
-<div class="container my-5">
-  <div class="row justify-content-center">
-    <div class="col-md-8">
-
-      <!-- Search Bar -->
-      <div class="mb-4">
-        <input type="text" class="form-control" id="searchQuery" placeholder="Search users...">
+  <header class="relative border-b border-slate-200/60 bg-white/70 backdrop-blur">
+    <nav class="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+      <a href="/chat" class="font-display text-2xl text-slate-900">Realtime Chat</a>
+      <div class="flex flex-wrap items-center gap-2">
+        <a href="/chat/public" class="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-tide/60 hover:text-tide">Public Room</a>
+        <a href="/profile" class="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-tide/60 hover:text-tide">Profile</a>
+        <a href="/auth/logout" class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800">Logout</a>
       </div>
+    </nav>
+  </header>
 
-      <!-- Loading Spinner -->
-      <div id="loadingSpinner" class="text-center mb-3" style="display: none;">
-        <div class="spinner-border text-primary" role="status">
-          <span class="visually-hidden">Loading...</span>
+  <main class="relative mx-auto w-full max-w-6xl px-4 py-8 sm:px-8 sm:py-12">
+    <section class="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
+      <article class="rounded-3xl border border-white/70 bg-white/80 p-6 shadow-panel backdrop-blur sm:p-8">
+        <p class="inline-flex rounded-full bg-cloud px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-tide">Direct Message</p>
+        <h1 class="mt-3 font-display text-3xl leading-tight text-slate-900 sm:text-4xl">대화할 사용자를 검색하세요</h1>
+        <p class="mt-3 text-sm leading-6 text-slate-600 sm:text-base">
+          사용자 검색 후 카드를 클릭하면 1:1 채팅방으로 이동하며, 읽지 않은 메시지는 아래 Recent Conversations에서 확인할 수 있습니다.
+        </p>
+
+        <label for="searchQuery" class="mt-8 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Search User</label>
+        <div class="mt-2 flex rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm focus-within:border-tide/70 focus-within:ring-2 focus-within:ring-tide/20">
+          <input
+                  type="text"
+                  id="searchQuery"
+                  placeholder="name 또는 email"
+                  class="w-full border-none bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
+          >
         </div>
-      </div>
 
-      <!-- Search Results -->
-      <div id="searchResults"></div>
+        <div id="loadingSpinner" class="mt-4 hidden items-center gap-2 text-sm text-slate-500">
+          <span class="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-tide"></span>
+          <span>검색 중...</span>
+        </div>
+      </article>
 
-    </div>
-  </div>
+      <article class="rounded-3xl border border-slate-200/80 bg-slate-950 p-6 text-slate-100 shadow-panel sm:p-8">
+        <h2 class="font-display text-2xl">Search Tips</h2>
+        <ul class="mt-4 space-y-3 text-sm leading-6 text-slate-300">
+          <li>• `test1`, `test2`, `test3` 계정으로 빠르게 테스트할 수 있습니다.</li>
+          <li>• 공개 채팅은 상단 `Public Room`에서 바로 진입합니다.</li>
+          <li>• 프로필에서 표시 이름/사진을 바꾸면 채팅 화면에 즉시 반영됩니다.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="mt-6 rounded-3xl border border-white/70 bg-white/85 p-4 shadow-panel backdrop-blur sm:p-6">
+      <h3 class="mb-4 text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">Recent Conversations</h3>
+      <div id="conversationList" class="grid gap-3"></div>
+    </section>
+
+    <section class="mt-6 rounded-3xl border border-white/70 bg-white/85 p-4 shadow-panel backdrop-blur sm:p-6">
+      <h3 class="mb-4 text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">Search Results</h3>
+      <div id="searchResults" class="grid gap-3"></div>
+    </section>
+  </main>
 </div>
-
-<!-- Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
-<!-- Inline JavaScript -->
 
 <script th:inline="javascript">
   var username = /*[[${username}]]*/ "User";
@@ -74,7 +112,7 @@
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
       searchUsers();
-    }, 300);
+    }, 250);
   });
 
   function searchUsers() {
@@ -83,17 +121,22 @@
     const spinner = document.getElementById("loadingSpinner");
 
     resultsDiv.innerHTML = "";
-    if (!query) return;
+    if (!query) {
+      resultsDiv.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">검색어를 입력하면 결과가 표시됩니다.</div>';
+      return;
+    }
 
-    spinner.style.display = "block";
+    spinner.classList.remove("hidden");
+    spinner.classList.add("flex");
 
     fetch('/chat/search?query=' + encodeURIComponent(query))
             .then(response => response.json())
             .then(data => {
-              spinner.style.display = "none";
+              spinner.classList.add("hidden");
+              spinner.classList.remove("flex");
 
               if (data.length === 0) {
-                resultsDiv.innerHTML = '<div class="alert alert-warning">No users found.</div>';
+                resultsDiv.innerHTML = '<div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-700">검색 결과가 없습니다.</div>';
                 return;
               }
 
@@ -118,61 +161,140 @@
               });
             })
             .catch(error => {
-              spinner.style.display = "none";
+              spinner.classList.add("hidden");
+              spinner.classList.remove("flex");
               console.error('Error fetching search results:', error);
-              resultsDiv.innerHTML = '<div class="alert alert-danger">Something went wrong. Please try again later.</div>';
+              resultsDiv.innerHTML = '<div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-700">오류가 발생했습니다. 잠시 후 다시 시도하세요.</div>';
             });
   }
 
   function renderUserCard(name, imgUrl, email) {
     const resultsDiv = document.getElementById("searchResults");
 
-    const card = document.createElement("div");
-    card.className = "card mb-2 user-card";
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "fade-in-up group w-full rounded-2xl border border-slate-200 bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-tide/60 hover:shadow-md";
     card.onclick = () => window.location.href = '/chat/private?recipient=' + encodeURIComponent(email);
 
     const row = document.createElement("div");
-    row.className = "row g-0 align-items-center";
-
-    const imgCol = document.createElement("div");
-    imgCol.className = "col-auto";
+    row.className = "flex items-center gap-3";
 
     const img = document.createElement("img");
     img.src = imgUrl;
     img.alt = "Profile Pic";
-    img.className = "rounded-circle m-2";
-    img.style.width = "50px";
-    img.style.height = "50px";
-    img.style.objectFit = "cover";
-
-    imgCol.appendChild(img);
+    img.className = "h-14 w-14 rounded-xl object-cover ring-2 ring-slate-100";
 
     const textCol = document.createElement("div");
-    textCol.className = "col";
+    textCol.className = "min-w-0";
 
-    const cardBody = document.createElement("div");
-    cardBody.className = "card-body py-2";
-
-    const nameElem = document.createElement("h6");
-    nameElem.className = "card-title mb-0";
+    const nameElem = document.createElement("p");
+    nameElem.className = "truncate text-sm font-semibold text-slate-900 group-hover:text-tide";
     nameElem.textContent = name;
 
     const emailElem = document.createElement("p");
-    emailElem.className = "card-text text-muted small mb-0";
+    emailElem.className = "truncate text-xs text-slate-500";
     emailElem.textContent = email;
 
-    cardBody.appendChild(nameElem);
-    cardBody.appendChild(emailElem);
-    textCol.appendChild(cardBody);
-
-    row.appendChild(imgCol);
+    textCol.appendChild(nameElem);
+    textCol.appendChild(emailElem);
+    row.appendChild(img);
     row.appendChild(textCol);
     card.appendChild(row);
 
     resultsDiv.appendChild(card);
   }
+
+  function loadUnreadConversations() {
+    const conversationList = document.getElementById("conversationList");
+    fetch('/chat/conversations/unread')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error("Failed to load conversations");
+              }
+              return response.json();
+            })
+            .then(data => {
+              conversationList.innerHTML = "";
+              if (!data.length) {
+                conversationList.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">아직 대화 기록이 없습니다. 사용자를 검색해 대화를 시작하세요.</div>';
+                return;
+              }
+
+              data.forEach(summary => {
+                fetch('/profile/' + encodeURIComponent(summary.peerUser))
+                        .then(resp => {
+                          if (!resp.ok) throw new Error("No profile");
+                          return resp.json();
+                        })
+                        .then(profile => {
+                          renderConversationCard(
+                                  profile.displayName || summary.peerUser,
+                                  profile.profilePicUrl || DEFAULT_IMG,
+                                  summary
+                          );
+                        })
+                        .catch(() => {
+                          renderConversationCard(summary.peerUser, DEFAULT_IMG, summary);
+                        });
+              });
+            })
+            .catch(error => {
+              console.error('Error loading unread conversations:', error);
+              conversationList.innerHTML = '<div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-700">최근 대화 로드에 실패했습니다.</div>';
+            });
+  }
+
+  function renderConversationCard(displayName, imgUrl, summary) {
+    const conversationList = document.getElementById("conversationList");
+
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "fade-in-up group w-full rounded-2xl border border-slate-200 bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-tide/60 hover:shadow-md";
+    card.onclick = () => window.location.href = '/chat/private?recipient=' + encodeURIComponent(summary.peerUser);
+
+    const row = document.createElement("div");
+    row.className = "flex items-center justify-between gap-3";
+
+    const left = document.createElement("div");
+    left.className = "flex min-w-0 items-center gap-3";
+
+    const img = document.createElement("img");
+    img.src = imgUrl;
+    img.alt = "Profile Pic";
+    img.className = "h-12 w-12 rounded-xl object-cover ring-2 ring-slate-100";
+
+    const textCol = document.createElement("div");
+    textCol.className = "min-w-0";
+
+    const nameElem = document.createElement("p");
+    nameElem.className = "truncate text-sm font-semibold text-slate-900 group-hover:text-tide";
+    nameElem.textContent = displayName;
+
+    const preview = document.createElement("p");
+    preview.className = "truncate text-xs text-slate-500";
+    preview.textContent = summary.lastMessagePreview || "메시지 없음";
+
+    textCol.appendChild(nameElem);
+    textCol.appendChild(preview);
+
+    left.appendChild(img);
+    left.appendChild(textCol);
+    row.appendChild(left);
+
+    if (summary.unreadCount > 0) {
+      const badge = document.createElement("span");
+      badge.className = "rounded-full bg-ember px-2.5 py-1 text-xs font-bold text-white";
+      badge.textContent = summary.unreadCount > 99 ? "99+" : String(summary.unreadCount);
+      row.appendChild(badge);
+    }
+
+    card.appendChild(row);
+    conversationList.appendChild(card);
+  }
+
+  searchUsers();
+  loadUnreadConversations();
+  setInterval(loadUnreadConversations, 8000);
 </script>
-
-
 </body>
 </html>

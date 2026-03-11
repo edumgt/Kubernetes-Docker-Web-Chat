@@ -83,6 +83,44 @@ spec:
       targetPort: 9999
 
 ---
+# Frontend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: chat-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: chat-app-frontend:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 80
+---
+# Frontend Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: chat-app
+spec:
+  selector:
+    app: frontend
+  ports:
+    - protocol: TCP
+      port: 5173
+      targetPort: 80
+
+---
 # Auth-Service Deployment
 apiVersion: apps/v1
 kind: Deployment
@@ -153,6 +191,12 @@ spec:
               value: chat-service
             - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
               value: http://eureka-server:8761/eureka/
+            - name: APP_WEBSOCKET_REDIS_ENABLED
+              value: "true"
+            - name: SPRING_DATA_REDIS_HOST
+              value: redis
+            - name: SPRING_DATA_REDIS_PORT
+              value: "6379"
 ---
 # Chat-Service Service
 apiVersion: v1
@@ -167,6 +211,43 @@ spec:
     - protocol: TCP
       port: 8082
       targetPort: 8082
+
+---
+# Redis Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: chat-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+---
+# Redis Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: chat-app
+spec:
+  selector:
+    app: redis
+  ports:
+    - protocol: TCP
+      port: 6379
+      targetPort: 6379
 
 ---
 # Profile-Service Deployment

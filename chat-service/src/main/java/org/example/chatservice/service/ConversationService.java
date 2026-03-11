@@ -5,6 +5,7 @@ import org.example.chatservice.repository.ConversationRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
+import java.util.HashMap;
 
 @Service
 public class ConversationService {
@@ -31,6 +32,7 @@ public class ConversationService {
                             conversation.setUser1(user1_);
                             conversation.setUser2(user2_);
                             conversation.setCreatedAt(new Date());
+                            conversation.setLastReadAtByUser(new HashMap<>());
                             return conversationRepository.save(conversation);
                         });
 

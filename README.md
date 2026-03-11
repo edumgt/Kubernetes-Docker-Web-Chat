@@ -33,9 +33,48 @@
 - **eureka-server**
   서비스 등록/탐색(Service Discovery)을 담당하며, 동적으로 서비스 위치를 찾을 수 있게 합니다.
 
+- **frontend (React SPA)**
+  API Gateway를 단일 진입점으로 사용하는 분리형 프론트엔드입니다.
+
 ---
 
-## 3) 기술 스택 (상세)
+## 3) 서비스 시퀀스 다이어그램
+
+아래 다이어그램은 사용자 로그인 후 공개 채팅 메시지를 송수신하는 핵심 흐름을 나타냅니다.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as User(Browser)
+    participant G as API Gateway
+    participant O as Auth Service
+    participant E as Eureka
+    participant C as Chat Service
+    participant P as Profile Service
+    participant MU as Mongo Users
+    participant MM as Mongo Messages
+
+    U->>G: GET /auth/login
+    G->>O: Route /auth/**
+    O-->>U: Google OAuth Login Page
+    U->>O: OAuth2 callback
+    O->>MU: Upsert user
+    O-->>U: JWT cookie + redirect /chat
+
+    U->>G: GET /chat/public
+    G->>C: Route /chat/**
+    C->>E: Resolve service instances
+    C-->>U: Public chat page (STOMP client)
+
+    U->>C: SEND /app/sendMessage (WebSocket)
+    C->>MM: Save message
+    C-->>U: BROADCAST /topic/messages
+    U->>G: GET /profile/{email}
+    G->>P: Route /profile/**
+    P-->>U: displayName/profilePic
+```
+
+## 4) 기술 스택 (상세)
 
 ### 백엔드
 
@@ -74,6 +113,9 @@
 - **MongoDB**
   메시지, 대화, 사용자/프로필 관련 문서 저장소로 사용됩니다.
 
+- **Redis**
+  다중 인스턴스 WebSocket 이벤트 릴레이(Pub/Sub)에 사용됩니다.
+
 - **JWT(JSON Web Token)**
   서비스 간 인증 컨텍스트 전달에 사용되며, 쿠키 기반 인증 흐름과 결합되어 사용됩니다.
 
@@ -82,14 +124,14 @@
 
 ### 프론트엔드
 
+- **React + TypeScript + Vite**
+  분리형 SPA 애플리케이션 구현에 사용됩니다.
+
 - **Thymeleaf**
-  서버 사이드 렌더링 템플릿 엔진으로 페이지 생성에 사용됩니다.
+  기존 서버 렌더링 화면(점진 이관 대상)에 사용됩니다.
 
-- **HTML / CSS / JavaScript**
-  UI 마크업, 스타일링, 클라이언트 동작 구현에 사용됩니다.
-
-- **Bootstrap**
-  반응형 UI 구성과 공통 스타일링을 빠르게 적용하기 위해 사용됩니다.
+- **Tailwind CSS**
+  SPA/서버 템플릿 화면의 유틸리티 기반 스타일링에 사용됩니다.
 
 ### 인프라/배포
 
@@ -102,6 +144,9 @@
 - **Kubernetes**
   서비스 오케스트레이션/확장/배포 관리를 위한 매니페스트 기반 운영에 사용됩니다.
 
+- **Prometheus**
+  Spring Actuator + Micrometer 메트릭 수집에 사용됩니다.
+
 ### 빌드/도구
 
 - **Maven**
@@ -112,13 +157,15 @@
 
 ---
 
-## 4) 디렉터리 구조
+## 5) 디렉터리 구조
 
 ```text
 .
 ├── api-gateway/
 ├── chat-service/
 ├── eureka-server/
+├── frontend/
+├── monitoring/
 ├── oauth/
 ├── profile-service/
 ├── docker-compose.yml
@@ -127,7 +174,7 @@
 
 ---
 
-## 5) 실행 방법 (로컬)
+## 6) 실행 방법 (로컬)
 
 ### 방법 A. 서비스별 실행
 
@@ -143,6 +190,15 @@
 3. profile-service
 4. chat-service
 5. api-gateway
+6. frontend
+
+프론트엔드 실행:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
 ### 방법 B. Docker Compose 실행
 
@@ -150,9 +206,72 @@
 docker compose up --build
 ```
 
+- SPA: `http://localhost:5173`
+- API Gateway: `http://localhost:9999`
+
+### 방법 C. 테스트용 초기화 + 재실행 스크립트
+
+기존 Docker 컨테이너/이미지를 모두 정리한 뒤, 이 레포를 다시 빌드/실행합니다.
+
+```bash
+./reset-and-run.sh
+```
+
+자동 확인(비대화형) 실행:
+
+```bash
+./reset-and-run.sh -y
+```
+
+### 방법 D. Docker 리셋 + MSA(Compose) + Kubernetes(kind) 일괄 배포
+
+WSL/Ubuntu + Docker 환경에서 Docker 초기화부터 Compose 배포, kind 기반 Kubernetes 배포까지 한 번에 실행합니다.
+
+```bash
+./deploy-all.sh
+```
+
+비대화형 실행:
+
+```bash
+./deploy-all.sh -y
+```
+
+### OAuth 테스트 유저 자동 시드
+
+`auth-service` 시작 시 아래 테스트 유저를 MongoDB(`chat-app-users.users`)에 upsert 합니다.
+
+- `test1` / `123456`
+- `test2` / `123456`
+- `test3` / `123456`
+
 ---
 
-## 6) Private 저장소로 복제(본인 GitHub Repo로 이전) 방법
+## 7) UI 화면 캡처
+
+아래 이미지는 `mcr.microsoft.com/playwright:v1.51.1-jammy` Docker 이미지로 자동 캡처했습니다.
+
+```bash
+docker run --rm \
+  --add-host host.docker.internal:host-gateway \
+  -v "$PWD:/work" -w /work \
+  mcr.microsoft.com/playwright:v1.51.1-jammy \
+  bash -lc "mkdir -p /tmp/pw && npm --prefix /tmp/pw init -y >/dev/null 2>&1 && npm --prefix /tmp/pw install playwright@1.51.1 >/dev/null 2>&1 && NODE_PATH=/tmp/pw/node_modules node scripts/capture-screenshots.cjs"
+```
+
+### 실행 후 화면
+
+![실행 후 로그인 페이지](docs/screenshots/01-app-running-login-page.png)
+
+### 로그인 후 화면
+
+![로그인 후 홈 화면](docs/screenshots/02-after-login-home-page.png)
+
+### 로그인 후 채팅 화면
+
+![로그인 후 채팅 화면](docs/screenshots/03-after-login-chat-page.png)
+
+## 8) Private 저장소로 복제(본인 GitHub Repo로 이전) 방법
 
 현재 실행 환경에서는 사용자의 GitHub 계정 인증 토큰/권한에 직접 접근할 수 없어, 원격 저장소 생성/푸시는 사용자가 한 번만 실행해야 합니다. 아래 절차대로 진행하면 됩니다.
 
@@ -179,10 +298,34 @@ git push my-private-repo main
 
 ---
 
-## 7) 향후 개선 아이디어
+## 9) 9.1~9.5 개발 진행 상태
 
-- React/Vue 기반 SPA 프론트엔드 분리
-- 채팅 메시지 읽음 처리, 안 읽은 메시지 카운트
-- Redis Pub/Sub 기반 다중 인스턴스 WebSocket 확장
-- 관측성(로그/메트릭/트레이싱) 고도화
-- CI/CD 파이프라인(GitHub Actions) 구축
+### 9.1 SPA 프론트엔드 분리
+- `frontend/` (React + TypeScript + Vite + Tailwind) 신규 추가
+- 로그인 후 대시보드/공개채팅/개인채팅 페이지 분리
+- Nginx 기반 컨테이너(`frontend/Dockerfile`)와 Compose/Kubernetes 배포 정의 추가
+
+### 9.2 읽음 처리 + unread 카운트
+- 메시지 모델 `readBy` 필드 추가
+- 대화 모델 `lastReadAtByUser`, `lastMessageAt`, `lastMessagePreview` 필드 추가
+- API 추가:
+  - `GET /chat/conversations/unread`
+  - `POST /chat/conversations/{conversationId}/read`
+  - `GET /chat/conversations/private?recipient=...`
+- WebSocket read-receipt 이벤트(`/user/queue/private/{conversationId}/read`) 추가
+- 기존 Thymeleaf 홈/개인채팅 화면에 unread 배지 및 읽음 상태 표시 반영
+
+### 9.3 Redis Pub/Sub 기반 다중 인스턴스 WebSocket
+- Redis Pub/Sub 이벤트 모델(`ChatRealtimeEvent`) 추가
+- Redis publisher/subscriber 및 listener container 추가
+- `APP_WEBSOCKET_REDIS_ENABLED=true` 시 WebSocket 이벤트를 Redis 경유로 릴레이
+- Compose/Kubernetes에 Redis 서비스 추가
+
+### 9.4 관측성(로그/메트릭/트레이싱)
+- 전 서비스 Actuator + Prometheus + Micrometer Tracing 의존성 추가
+- `/actuator/prometheus` 노출 및 traceId/spanId 로그 패턴 적용
+- Compose에 Prometheus 서비스 및 스크랩 설정(`monitoring/prometheus.yml`) 추가
+
+### 9.5 GitHub Actions 기반 CI/CD
+- `.github/workflows/ci.yml`: PR/Push 시 백엔드 테스트 + 프론트 빌드
+- `.github/workflows/cd.yml`: main 브랜치 Docker 이미지 빌드/푸시(서비스별 매트릭스) + 스모크체크 placeholder

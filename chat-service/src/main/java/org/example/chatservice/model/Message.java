@@ -6,6 +6,8 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
 
 @Document(collection = "messages")
 @Data
@@ -17,6 +19,7 @@ public class Message {
     private String content;
     private Date timestamp;
     private String conversationId;
+    private Set<String> readBy = new HashSet<>();
 
     public Message(){
 
