@@ -182,7 +182,7 @@ sequenceDiagram
 
 ---
 
-## 6) 실행 방법 (로컬)
+## 6) 실행 방법 (로컬/클라우드)
 
 ### 방법 A. 서비스별 실행
 
@@ -243,6 +243,125 @@ WSL/Ubuntu + Docker 환경에서 Docker 초기화부터 Compose 배포, kind 기
 
 ```bash
 ./deploy-all.sh -y
+```
+
+### 방법 E. AWS EKS 배포 (aws cli + eksctl + kubectl)
+
+아래는 `kubernetes.yml` 기준으로 EKS에 순차 배포하는 예시입니다.
+현재 매니페스트가 local kind 기준(`imagePullPolicy: Never`)이므로 EKS 적용 전 변환 단계를 포함합니다.
+
+1) 공통 변수 설정
+
+```sh
+set -euo pipefail
+
+export AWS_REGION="ap-northeast-2"
+export CLUSTER_NAME="chat-dev-eks"
+export NODEGROUP_NAME="chat-dev-ng"
+export ECR_PREFIX="chat-app"
+export AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+export ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+```
+
+2) AWS CLI 인증/권한 확인
+
+```sh
+aws configure
+aws sts get-caller-identity
+aws ec2 describe-availability-zones --region "$AWS_REGION" --query 'AvailabilityZones[].ZoneName' --output text
+```
+
+3) EKS 클러스터 생성 (`eksctl`)
+
+```sh
+eksctl create cluster \
+  --name "$CLUSTER_NAME" \
+  --region "$AWS_REGION" \
+  --version 1.30 \
+  --nodegroup-name "$NODEGROUP_NAME" \
+  --node-type t3.large \
+  --nodes 3 \
+  --nodes-min 2 \
+  --nodes-max 4 \
+  --managed
+```
+
+4) kubeconfig 연결 및 노드 확인 (`aws cli` + `kubectl`)
+
+```sh
+aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME"
+kubectl config current-context
+kubectl get nodes -o wide
+```
+
+5) ECR 리포지토리 생성 및 로그인 (`aws cli`)
+
+```sh
+aws ecr get-login-password --region "$AWS_REGION" \
+| docker login --username AWS --password-stdin "$ECR_REGISTRY"
+
+for repo in eureka-server api-gateway frontend auth-service chat-service profile-service; do
+  aws ecr describe-repositories --region "$AWS_REGION" --repository-names "${ECR_PREFIX}/${repo}" >/dev/null 2>&1 \
+    || aws ecr create-repository --region "$AWS_REGION" --repository-name "${ECR_PREFIX}/${repo}"
+done
+```
+
+6) 서비스 이미지 빌드/푸시
+
+```sh
+docker build -t "$ECR_REGISTRY/$ECR_PREFIX/eureka-server:latest" ./eureka-server
+docker build -t "$ECR_REGISTRY/$ECR_PREFIX/api-gateway:latest" ./api-gateway
+docker build -t "$ECR_REGISTRY/$ECR_PREFIX/frontend:latest" ./frontend
+docker build -t "$ECR_REGISTRY/$ECR_PREFIX/auth-service:latest" ./oauth
+docker build -t "$ECR_REGISTRY/$ECR_PREFIX/chat-service:latest" ./chat-service
+docker build -t "$ECR_REGISTRY/$ECR_PREFIX/profile-service:latest" ./profile-service
+
+docker push "$ECR_REGISTRY/$ECR_PREFIX/eureka-server:latest"
+docker push "$ECR_REGISTRY/$ECR_PREFIX/api-gateway:latest"
+docker push "$ECR_REGISTRY/$ECR_PREFIX/frontend:latest"
+docker push "$ECR_REGISTRY/$ECR_PREFIX/auth-service:latest"
+docker push "$ECR_REGISTRY/$ECR_PREFIX/chat-service:latest"
+docker push "$ECR_REGISTRY/$ECR_PREFIX/profile-service:latest"
+```
+
+7) EKS용 매니페스트 생성 (`kubectl` 적용 전 변환)
+
+```sh
+sed \
+  -e "s|chat-app-eureka-server:latest|$ECR_REGISTRY/$ECR_PREFIX/eureka-server:latest|g" \
+  -e "s|chat-app-api-gateway:latest|$ECR_REGISTRY/$ECR_PREFIX/api-gateway:latest|g" \
+  -e "s|chat-app-frontend:latest|$ECR_REGISTRY/$ECR_PREFIX/frontend:latest|g" \
+  -e "s|chat-app-auth-service:latest|$ECR_REGISTRY/$ECR_PREFIX/auth-service:latest|g" \
+  -e "s|chat-app-chat-service:latest|$ECR_REGISTRY/$ECR_PREFIX/chat-service:latest|g" \
+  -e "s|chat-app-profile-service:latest|$ECR_REGISTRY/$ECR_PREFIX/profile-service:latest|g" \
+  -e "s|imagePullPolicy: Never|imagePullPolicy: IfNotPresent|g" \
+  kubernetes.yml > kubernetes-eks.yml
+```
+
+8) 배포 및 롤아웃 확인 (`kubectl`)
+
+```sh
+kubectl apply -f kubernetes-eks.yml
+kubectl -n chat-app rollout status deployment/eureka-server
+kubectl -n chat-app rollout status deployment/api-gateway
+kubectl -n chat-app rollout status deployment/auth-service
+kubectl -n chat-app rollout status deployment/chat-service
+kubectl -n chat-app rollout status deployment/profile-service
+kubectl -n chat-app rollout status deployment/frontend
+kubectl -n chat-app get pods,svc
+```
+
+9) 외부 접근 테스트 (임시: frontend Service를 LoadBalancer로 패치)
+
+```sh
+kubectl -n chat-app patch svc frontend -p '{"spec":{"type":"LoadBalancer"}}'
+kubectl -n chat-app get svc frontend -w
+```
+
+10) 정리(필요 시)
+
+```sh
+eksctl delete cluster --name "$CLUSTER_NAME" --region "$AWS_REGION"
 ```
 
 ### OAuth 테스트 유저 자동 시드
