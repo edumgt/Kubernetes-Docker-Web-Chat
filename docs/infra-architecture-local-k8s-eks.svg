@@ -1,0 +1,150 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1080" viewBox="0 0 1800 1080">
+  <defs>
+    <style>
+      .title { font: 700 28px 'Arial'; fill: #0f172a; }
+      .subtitle { font: 600 18px 'Arial'; fill: #0f172a; }
+      .label { font: 500 14px 'Arial'; fill: #0f172a; }
+      .small { font: 500 12px 'Arial'; fill: #334155; }
+      .box { fill: #ffffff; stroke: #334155; stroke-width: 1.4; rx: 10; ry: 10; }
+      .group { fill: #f8fafc; stroke: #94a3b8; stroke-width: 1.8; rx: 14; ry: 14; }
+      .k8s { fill: #eef2ff; stroke: #6366f1; stroke-width: 2; rx: 14; ry: 14; }
+      .aws { fill: #fff7ed; stroke: #f97316; stroke-width: 2; rx: 14; ry: 14; }
+      .data { fill: #ecfeff; stroke: #0891b2; stroke-width: 1.6; rx: 10; ry: 10; }
+      .svc { fill: #f1f5f9; stroke: #475569; stroke-width: 1.2; rx: 8; ry: 8; }
+      .line { stroke: #475569; stroke-width: 1.6; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #64748b; stroke-width: 1.5; fill: none; stroke-dasharray: 6 5; marker-end: url(#arrow); }
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8.5" refY="3.5" orient="auto">
+      <polygon points="0 0, 9 3.5, 0 7" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <text x="30" y="42" class="title">Chat App Infra Architecture: Local k8s + AWS EKS (dev/prod)</text>
+
+  <rect x="20" y="70" width="860" height="980" class="k8s"/>
+  <text x="40" y="102" class="subtitle">Local Environment (Developer Machine)</text>
+  <text x="40" y="124" class="small">kind cluster + kubernetes.yml + local image load (imagePullPolicy: Never)</text>
+
+  <rect x="900" y="70" width="880" height="980" class="aws"/>
+  <text x="920" y="102" class="subtitle">AWS Cloud Environments</text>
+  <text x="920" y="124" class="small">EKS dev and EKS prod with GitHub Actions CD</text>
+
+  <rect x="40" y="150" width="820" height="360" class="group"/>
+  <text x="58" y="178" class="subtitle">Local kind Cluster (namespace: chat-app)</text>
+
+  <rect x="70" y="205" width="150" height="56" class="svc"/>
+  <text x="92" y="238" class="label">frontend</text>
+  <rect x="250" y="205" width="150" height="56" class="svc"/>
+  <text x="270" y="238" class="label">api-gateway</text>
+  <rect x="430" y="205" width="150" height="56" class="svc"/>
+  <text x="458" y="238" class="label">auth-service</text>
+  <rect x="610" y="205" width="150" height="56" class="svc"/>
+  <text x="639" y="238" class="label">chat-service</text>
+
+  <rect x="160" y="290" width="150" height="56" class="svc"/>
+  <text x="187" y="323" class="label">profile-service</text>
+  <rect x="340" y="290" width="150" height="56" class="svc"/>
+  <text x="375" y="323" class="label">eureka-server</text>
+  <rect x="520" y="290" width="150" height="56" class="svc"/>
+  <text x="575" y="323" class="label">redis</text>
+
+  <line x1="220" y1="233" x2="250" y2="233" class="line"/>
+  <line x1="400" y1="233" x2="430" y2="233" class="line"/>
+  <line x1="400" y1="245" x2="610" y2="245" class="line"/>
+  <line x1="325" y1="290" x2="325" y2="265" class="line"/>
+  <line x1="520" y1="233" x2="610" y2="233" class="line"/>
+  <line x1="475" y1="290" x2="475" y2="261" class="line"/>
+
+  <rect x="70" y="380" width="230" height="56" class="data"/>
+  <text x="94" y="414" class="label">mongodb-users</text>
+  <rect x="315" y="380" width="230" height="56" class="data"/>
+  <text x="338" y="414" class="label">mongodb-profiles</text>
+  <rect x="560" y="380" width="230" height="56" class="data"/>
+  <text x="580" y="414" class="label">mongodb-messages</text>
+
+  <line x1="505" y1="261" x2="185" y2="380" class="line"/>
+  <line x1="235" y1="346" x2="430" y2="380" class="line"/>
+  <line x1="685" y1="261" x2="675" y2="380" class="line"/>
+  <line x1="610" y1="318" x2="560" y2="408" class="line"/>
+
+  <rect x="40" y="530" width="820" height="220" class="group"/>
+  <text x="58" y="558" class="subtitle">GitHub Actions (Current in Repo)</text>
+  <rect x="70" y="580" width="360" height="64" class="box"/>
+  <text x="90" y="607" class="label">CI: backend test matrix + frontend build</text>
+  <text x="90" y="627" class="small">trigger: push/pull_request main</text>
+  <rect x="450" y="580" width="380" height="64" class="box"/>
+  <text x="470" y="607" class="label">CD: build/push Docker images (Docker Hub)</text>
+  <text x="470" y="627" class="small">deployment step is placeholder</text>
+
+  <rect x="40" y="770" width="820" height="250" class="group"/>
+  <text x="58" y="798" class="subtitle">Local Developer Flow</text>
+  <rect x="70" y="825" width="770" height="70" class="box"/>
+  <text x="90" y="854" class="label">deploy-all.sh: docker reset -> compose up -> build jars/images -> kind create -> kubectl apply</text>
+  <text x="90" y="875" class="small">quick access by port-forward: frontend(5173), api-gateway(9999)</text>
+  <rect x="70" y="910" width="770" height="80" class="box"/>
+  <text x="90" y="940" class="label">Prometheus scrapes actuator metrics from services</text>
+  <text x="90" y="961" class="small">jobs: eureka, api-gateway, auth-service, chat-service, profile-service</text>
+
+  <rect x="920" y="150" width="830" height="380" class="group"/>
+  <text x="940" y="178" class="subtitle">GitHub Actions Target Pipeline (for EKS)</text>
+  <rect x="950" y="205" width="260" height="70" class="box"/>
+  <text x="978" y="236" class="label">ci.yml</text>
+  <text x="978" y="256" class="small">test/build/scan</text>
+  <rect x="1230" y="205" width="240" height="70" class="box"/>
+  <text x="1252" y="236" class="label">cd-dev.yml</text>
+  <text x="1252" y="256" class="small">auto deploy to EKS dev</text>
+  <rect x="1490" y="205" width="230" height="70" class="box"/>
+  <text x="1510" y="236" class="label">cd-prod.yml</text>
+  <text x="1510" y="256" class="small">manual approval deploy</text>
+
+  <rect x="950" y="305" width="350" height="80" class="box"/>
+  <text x="970" y="336" class="label">OIDC -> Assume AWS IAM Role</text>
+  <text x="970" y="356" class="small">no long-lived AWS keys</text>
+  <rect x="1320" y="305" width="400" height="80" class="box"/>
+  <text x="1340" y="336" class="label">Build image once -> push ECR (sha tag)</text>
+  <text x="1340" y="356" class="small">deploy by immutable image tag</text>
+
+  <line x1="1210" y1="240" x2="1230" y2="240" class="line"/>
+  <line x1="1470" y1="240" x2="1490" y2="240" class="line"/>
+  <line x1="1080" y1="275" x2="1120" y2="305" class="line"/>
+  <line x1="1350" y1="275" x2="1450" y2="305" class="line"/>
+
+  <rect x="920" y="550" width="400" height="470" class="group"/>
+  <text x="940" y="578" class="subtitle">EKS Dev</text>
+  <rect x="950" y="610" width="340" height="56" class="svc"/>
+  <text x="980" y="644" class="label">ALB Ingress -> frontend/api-gateway</text>
+  <rect x="950" y="680" width="340" height="150" class="k8s"/>
+  <text x="972" y="706" class="label">EKS workloads (chat-app namespace)</text>
+  <text x="972" y="727" class="small">frontend, api-gateway, auth, chat, profile, eureka</text>
+  <text x="972" y="747" class="small">redis optional in-cluster / managed</text>
+  <rect x="950" y="845" width="340" height="70" class="data"/>
+  <text x="980" y="875" class="label">DocumentDB (dev) + ElastiCache (dev)</text>
+  <text x="980" y="894" class="small">isolated dev data plane</text>
+  <rect x="950" y="930" width="340" height="70" class="box"/>
+  <text x="980" y="960" class="label">Secrets Manager + External Secrets</text>
+  <text x="980" y="980" class="small">Google OAuth/JWT/DB creds</text>
+
+  <rect x="1350" y="550" width="400" height="470" class="group"/>
+  <text x="1370" y="578" class="subtitle">EKS Prod</text>
+  <rect x="1380" y="610" width="340" height="56" class="svc"/>
+  <text x="1410" y="644" class="label">ALB Ingress -> frontend/api-gateway</text>
+  <rect x="1380" y="680" width="340" height="150" class="k8s"/>
+  <text x="1402" y="706" class="label">EKS workloads (chat-app namespace)</text>
+  <text x="1402" y="727" class="small">HPA/PDB/NetworkPolicy recommended</text>
+  <text x="1402" y="747" class="small">same services with hardened settings</text>
+  <rect x="1380" y="845" width="340" height="70" class="data"/>
+  <text x="1410" y="875" class="label">DocumentDB (prod) + ElastiCache (prod)</text>
+  <text x="1410" y="894" class="small">isolated prod data plane</text>
+  <rect x="1380" y="930" width="340" height="70" class="box"/>
+  <text x="1410" y="960" class="label">CloudWatch / AMP / AMG</text>
+  <text x="1410" y="980" class="small">metrics, logs, alerts, dashboards</text>
+
+  <line x1="1120" y1="385" x2="1120" y2="610" class="line"/>
+  <line x1="1520" y1="385" x2="1520" y2="610" class="line"/>
+  <line x1="1120" y1="830" x2="1120" y2="845" class="line"/>
+  <line x1="1520" y1="830" x2="1520" y2="845" class="line"/>
+
+  <line x1="780" y1="612" x2="920" y2="612" class="dash"/>
+  <text x="790" y="600" class="small">same service topology, different runtime substrate</text>
+</svg>
+
