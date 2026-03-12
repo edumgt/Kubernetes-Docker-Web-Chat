@@ -1,4 +1,6 @@
 import type {
+  AdminOverview,
+  AdminSession,
   ChatMessage,
   ConversationSummary,
   PrivateConversation,
@@ -39,6 +41,24 @@ export const api = {
     }),
 
   getProfile: (email: string) =>
-    fetchJson<Profile>(`/profile/${encodeURIComponent(email)}`)
-};
+    fetchJson<Profile>(`/profile/${encodeURIComponent(email)}`),
 
+  adminLogin: (email: string, password: string) =>
+    fetchJson<AdminSession>("/chat/admin/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ email, password })
+    }),
+
+  adminLogout: () =>
+    fetch("/chat/admin/logout", {
+      method: "POST",
+      credentials: "include"
+    }),
+
+  getAdminMe: () => fetchJson<AdminSession>("/chat/admin/me"),
+
+  getAdminOverview: () => fetchJson<AdminOverview>("/chat/admin/overview")
+};

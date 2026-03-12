@@ -38,6 +38,14 @@
 
 ---
 
+## 2.5) 인프라 아키텍처 구성도 (AWS 아이콘 기반 SVG)
+
+로컬 Kubernetes(kind)와 AWS EKS(dev/prod) 운영 구조를 하나의 SVG로 정리했습니다.
+
+![Local k8s + AWS EKS Architecture](docs/infra-architecture-local-k8s-eks.svg)
+
+---
+
 ## 3) 서비스 시퀀스 다이어그램
 
 아래 다이어그램은 사용자 로그인 후 공개 채팅 메시지를 송수신하는 핵심 흐름을 나타냅니다.
@@ -329,3 +337,179 @@ git push my-private-repo main
 ### 9.5 GitHub Actions 기반 CI/CD
 - `.github/workflows/ci.yml`: PR/Push 시 백엔드 테스트 + 프론트 빌드
 - `.github/workflows/cd.yml`: main 브랜치 Docker 이미지 빌드/푸시(서비스별 매트릭스) + 스모크체크 placeholder
+
+---
+
+## 10) Kubernetes 배포 검증 + Node/Pod 대시보드
+
+### 10.1 검증 목표
+
+- MSA 기반 Spring Boot 백엔드 모듈이 Kubernetes에서 각각 Pod로 정상 기동되는지 확인
+- Node/Pod 상태를 웹 대시보드에서 관찰 가능한 솔루션 설치
+- 결과 화면 캡처 및 문서화
+
+### 10.2 테스트 일시/환경
+
+- 테스트 일시: **2026-03-12**
+- 클러스터: `kind-chat-app-kind` (single control-plane node)
+- Namespace: `chat-app`
+
+### 10.3 Backend Pod 배포/기동 확인 결과
+
+검증 대상 백엔드 모듈:
+- `eureka-server`
+- `api-gateway`
+- `auth-service` (oauth)
+- `chat-service`
+- `profile-service`
+
+배포 상태(`READY/AVAILABLE/UPDATED`) 확인 결과:
+
+```text
+eureka-server     1     1     1
+api-gateway       1     1     1
+auth-service      1     1     1
+chat-service      1     1     1
+profile-service   1     1     1
+```
+
+Node 상태:
+
+```text
+chat-app-kind-control-plane   Ready   v1.30.0   172.25.0.2
+```
+
+Pod 상태(요약):
+
+```text
+api-gateway-...      1/1 Running
+auth-service-...     1/1 Running
+chat-service-...     1/1 Running
+eureka-server-...    1/1 Running
+profile-service-...  1/1 Running
+```
+
+### 10.4 설치한 대시보드 솔루션
+
+- **Kubernetes Dashboard** (웹 UI)
+- **metrics-server** (Node/Pod 메트릭 제공)
+
+적용 리소스:
+- `kubernetes-dashboard` namespace 및 dashboard deployment/service
+- `metrics-server` deployment/service
+- `dashboard-admin` ServiceAccount + `cluster-admin` ClusterRoleBinding
+
+### 10.5 대시보드 접속/캡처 방법
+
+포트 포워딩:
+
+```bash
+kubectl -n kubernetes-dashboard port-forward svc/kubernetes-dashboard 8443:443 --address 127.0.0.1
+```
+
+로그인 토큰 발급:
+
+```bash
+kubectl -n kubernetes-dashboard create token dashboard-admin
+```
+
+자동 캡처 스크립트:
+
+```bash
+DASHBOARD_TOKEN="$(kubectl -n kubernetes-dashboard create token dashboard-admin)" \
+node scripts/capture-k8s-dashboard.cjs
+```
+
+> `scripts/capture-k8s-dashboard.cjs`는 Playwright 런타임이 필요합니다.  
+> 본 저장소에서는 Playwright 컨테이너(`mcr.microsoft.com/playwright:v1.58.2-jammy`)로 실행했습니다.
+
+컨테이너 기반 실행 예시:
+
+```bash
+DASHBOARD_TOKEN="$(kubectl -n kubernetes-dashboard create token dashboard-admin)"
+docker run --rm --network host \
+  -e DASHBOARD_TOKEN="$DASHBOARD_TOKEN" \
+  -v "$PWD:/work" -w /work \
+  mcr.microsoft.com/playwright:v1.58.2-jammy \
+  bash -lc "cd /tmp && npm init -y >/dev/null 2>&1 && npm install playwright@1.58.2 >/dev/null 2>&1 && NODE_PATH=/tmp/node_modules node /work/scripts/capture-k8s-dashboard.cjs"
+```
+
+### 10.6 Dashboard 화면 캡처
+
+#### Dashboard 로그인 화면
+
+![Kubernetes Dashboard Login](docs/screenshots/04-k8s-dashboard-login.png)
+
+#### Node 목록 화면
+
+![Kubernetes Dashboard Nodes](docs/screenshots/05-k8s-dashboard-nodes.png)
+
+#### chat-app Namespace Pod 목록 화면
+
+![Kubernetes Dashboard Pods](docs/screenshots/06-k8s-dashboard-pods-chat-app.png)
+
+---
+
+## 11) Chat Backoffice (Kubernetes API 직접 조회)
+
+### 11.1 구현 목표
+
+- Kubernetes Dashboard 외 별도 운영 화면에서 Node/Pod 상태 모니터링
+- MSA 채팅 지표(채팅방 수, 채팅 참여자 수) 동시 확인
+- 운영자 계정 로그인 후 접근 가능한 백오피스 모듈 제공
+
+### 11.2 Admin 계정
+
+- Email: `admin@test.com`
+- Password: `123456`
+
+> 운영 환경에서는 반드시 환경변수로 교체하세요.  
+> (`APP_ADMIN_AUTH_EMAIL`, `APP_ADMIN_AUTH_PASSWORD`, `APP_ADMIN_AUTH_TOKEN_SECRET`)
+
+### 11.3 아키텍처/동작 방식
+
+- 프론트 백오피스 경로: `/backoffice`
+- Admin API: `/chat/admin/login`, `/chat/admin/me`, `/chat/admin/overview`, `/chat/admin/logout`
+- Nginx 라우팅: `/chat/admin`, `/chat/me` 는 `chat-service`로 직접 프록시
+- `chat-service`가 Kubernetes API를 직접 호출:
+  - `GET /api/v1/nodes`
+  - `GET /api/v1/namespaces/{namespace}/pods`
+- `chat-service` Pod에 RBAC 적용:
+  - ServiceAccount: `chat-service-admin-reader`
+  - ClusterRole: `nodes`, `pods` `get/list`
+  - ClusterRoleBinding 연결
+- 채팅 지표:
+  - `totalRoomCount`: `public` + private conversation 수
+  - `participantCount`: private conversation 기준 유니크 사용자 수
+
+### 11.4 백오피스 캡처 방법
+
+```bash
+kubectl -n chat-app port-forward svc/frontend 5173:5173 --address 127.0.0.1
+```
+
+```bash
+node scripts/capture-backoffice-dashboard.cjs
+```
+
+컨테이너 기반 Playwright 실행 예시:
+
+```bash
+docker run --rm --network host \
+  -e BASE_URL=http://127.0.0.1:5173 \
+  -e ADMIN_EMAIL=admin@test.com \
+  -e ADMIN_PASSWORD=123456 \
+  -v "$PWD:/work" -w /work \
+  mcr.microsoft.com/playwright:v1.58.2-jammy \
+  bash -lc "cd /tmp && npm init -y >/dev/null 2>&1 && npm install playwright@1.58.2 >/dev/null 2>&1 && NODE_PATH=/tmp/node_modules node /work/scripts/capture-backoffice-dashboard.cjs"
+```
+
+### 11.5 Backoffice 화면 캡처
+
+#### Backoffice Login
+
+![Backoffice Login](docs/screenshots/07-backoffice-login.png)
+
+#### Backoffice Dashboard (Node/Pod + Chat Metrics)
+
+![Backoffice Dashboard](docs/screenshots/08-backoffice-dashboard.png)

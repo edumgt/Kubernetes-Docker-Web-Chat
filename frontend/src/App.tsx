@@ -1,10 +1,11 @@
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { api } from "./lib/api";
 import type {
+  AdminOverview,
   ChatMessage,
   ConversationSummary,
   Profile,
@@ -65,6 +66,12 @@ function AppShell({
               className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-mint hover:text-mint"
             >
               Public
+            </Link>
+            <Link
+              to="/backoffice"
+              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-mint hover:text-mint"
+            >
+              Backoffice
             </Link>
             <a
               href="/profile"
@@ -523,6 +530,292 @@ function PrivateRoomPage({ currentUser }: { currentUser: string | null }) {
   );
 }
 
+function MetricTile({ title, value, description }: { title: string; value: string | number; description: string }) {
+  return (
+    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{title}</p>
+      <p className="mt-2 text-3xl font-bold text-slate-900">{value}</p>
+      <p className="mt-1 text-xs text-slate-500">{description}</p>
+    </article>
+  );
+}
+
+function BackofficePage() {
+  const [email, setEmail] = useState("admin@test.com");
+  const [password, setPassword] = useState("123456");
+  const [adminEmail, setAdminEmail] = useState<string | null>(null);
+  const [overview, setOverview] = useState<AdminOverview | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const loadOverview = useCallback(async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const data = await api.getAdminOverview();
+      setOverview(data);
+    } catch {
+      setErrorMessage("모니터링 데이터를 불러오지 못했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const session = await api.getAdminMe();
+        if (!mounted) return;
+        setAdminEmail(session.email);
+        const data = await api.getAdminOverview();
+        if (!mounted) return;
+        setOverview(data);
+      } catch {
+        if (!mounted) return;
+        setAdminEmail(null);
+      } finally {
+        if (mounted) {
+          setIsCheckingSession(false);
+        }
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setErrorMessage(null);
+    setIsLoading(true);
+    try {
+      const session = await api.adminLogin(email.trim(), password);
+      setAdminEmail(session.email);
+      const data = await api.getAdminOverview();
+      setOverview(data);
+    } catch {
+      setErrorMessage("관리자 로그인에 실패했습니다. 계정을 확인하세요.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await api.adminLogout();
+    setAdminEmail(null);
+    setOverview(null);
+    setEmail("admin@test.com");
+    setPassword("123456");
+  };
+
+  const runningPods = overview?.podPhaseSummary?.Running ?? 0;
+  const readyNodes = overview?.nodes?.filter((node) => node.ready).length ?? 0;
+
+  if (isCheckingSession) {
+    return (
+      <section className="rounded-3xl border border-white/70 bg-white/85 p-6 shadow-xl">
+        <p className="text-sm text-slate-600">백오피스 세션을 확인하는 중입니다...</p>
+      </section>
+    );
+  }
+
+  if (!adminEmail) {
+    return (
+      <section
+        data-testid="admin-login-page"
+        className="mx-auto max-w-lg rounded-3xl border border-white/70 bg-white/85 p-6 shadow-xl"
+      >
+        <p className="inline-flex rounded-full bg-haze px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-mint">
+          Chat Backoffice
+        </p>
+        <h1 className="mt-3 font-display text-4xl text-slate-900">Admin Login</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          Kubernetes API 기반 Node/Pod 모니터링, 채팅방/참여자 지표를 확인합니다.
+        </p>
+        <form className="mt-6 space-y-4" onSubmit={handleLogin}>
+          <div>
+            <label htmlFor="admin-email" className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+              Email
+            </label>
+            <input
+              id="admin-email"
+              name="admin-email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-mint"
+            />
+          </div>
+          <div>
+            <label htmlFor="admin-password" className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+              Password
+            </label>
+            <input
+              id="admin-password"
+              name="admin-password"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-mint"
+            />
+          </div>
+          {errorMessage ? <p className="text-sm text-rose-600">{errorMessage}</p> : null}
+          <button
+            type="submit"
+            data-testid="admin-login-button"
+            disabled={isLoading}
+            className="w-full rounded-2xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isLoading ? "로그인 중..." : "Login"}
+          </button>
+        </form>
+      </section>
+    );
+  }
+
+  return (
+    <section data-testid="admin-dashboard" className="space-y-6 rounded-3xl border border-white/70 bg-white/85 p-6 shadow-xl">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="inline-flex rounded-full bg-haze px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-mint">
+            Chat Backoffice
+          </p>
+          <h1 className="mt-2 font-display text-4xl text-slate-900">Kubernetes + Chat Monitoring</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            로그인 계정: <span className="font-semibold">{adminEmail}</span> | namespace:{" "}
+            <span className="font-semibold">{overview?.namespace ?? "-"}</span>
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={loadOverview}
+            className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-mint hover:text-mint"
+          >
+            Refresh
+          </button>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+
+      {errorMessage ? <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{errorMessage}</p> : null}
+      {overview?.kubernetesError ? (
+        <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">{overview.kubernetesError}</p>
+      ) : null}
+
+      <div className="grid gap-3 md:grid-cols-4">
+        <MetricTile
+          title="Chat Rooms"
+          value={overview?.chatMetrics.totalRoomCount ?? 0}
+          description={`private: ${overview?.chatMetrics.privateRoomCount ?? 0}, public 포함`}
+        />
+        <MetricTile
+          title="Participants"
+          value={overview?.chatMetrics.participantCount ?? 0}
+          description="개인 채팅 기준 유니크 참여자"
+        />
+        <MetricTile
+          title="Nodes Ready"
+          value={`${readyNodes}/${overview?.nodes.length ?? 0}`}
+          description="Kubernetes API /api/v1/nodes"
+        />
+        <MetricTile
+          title="Pods Running"
+          value={`${runningPods}/${overview?.pods.length ?? 0}`}
+          description="Kubernetes API /api/v1/namespaces/{ns}/pods"
+        />
+      </div>
+
+      {isLoading ? <p className="text-sm text-slate-600">데이터 새로고침 중...</p> : null}
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="font-display text-2xl text-slate-900">Nodes</h2>
+          <div className="mt-3 overflow-x-auto">
+            <table className="min-w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 text-slate-500">
+                  <th className="py-2 pr-3 font-semibold">Name</th>
+                  <th className="py-2 pr-3 font-semibold">Role</th>
+                  <th className="py-2 pr-3 font-semibold">Status</th>
+                  <th className="py-2 pr-3 font-semibold">Version</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(overview?.nodes ?? []).map((node) => (
+                  <tr key={node.name} className="border-b border-slate-100">
+                    <td className="py-2 pr-3 text-slate-800">{node.name}</td>
+                    <td className="py-2 pr-3 text-slate-600">{node.role}</td>
+                    <td className="py-2 pr-3">
+                      <span
+                        className={
+                          node.ready
+                            ? "rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-700"
+                            : "rounded-full bg-rose-100 px-2 py-1 text-[11px] font-semibold text-rose-700"
+                        }
+                      >
+                        {node.status}
+                      </span>
+                    </td>
+                    <td className="py-2 pr-3 text-slate-600">{node.kubeletVersion || "-"}</td>
+                  </tr>
+                ))}
+                {!overview?.nodes.length ? (
+                  <tr>
+                    <td className="py-3 text-slate-500" colSpan={4}>
+                      노드 정보가 없습니다.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="font-display text-2xl text-slate-900">Pods ({overview?.namespace ?? "-"})</h2>
+          <div className="mt-3 overflow-x-auto">
+            <table className="min-w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 text-slate-500">
+                  <th className="py-2 pr-3 font-semibold">Name</th>
+                  <th className="py-2 pr-3 font-semibold">Phase</th>
+                  <th className="py-2 pr-3 font-semibold">Ready</th>
+                  <th className="py-2 pr-3 font-semibold">Node</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(overview?.pods ?? []).map((pod) => (
+                  <tr key={pod.name} className="border-b border-slate-100">
+                    <td className="py-2 pr-3 text-slate-800">{pod.name}</td>
+                    <td className="py-2 pr-3 text-slate-600">{pod.phase}</td>
+                    <td className="py-2 pr-3 text-slate-600">{pod.ready}</td>
+                    <td className="py-2 pr-3 text-slate-600">{pod.nodeName || "-"}</td>
+                  </tr>
+                ))}
+                {!overview?.pods.length ? (
+                  <tr>
+                    <td className="py-3 text-slate-500" colSpan={4}>
+                      파드 정보가 없습니다.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+    </section>
+  );
+}
+
 function RootApp() {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
 
@@ -546,6 +839,7 @@ function RootApp() {
           <Route path="/" element={<DashboardPage currentUser={currentUser} />} />
           <Route path="/public-room" element={<PublicRoomPage currentUser={currentUser} />} />
           <Route path="/dm/:recipient" element={<PrivateRoomPage currentUser={currentUser} />} />
+          <Route path="/backoffice" element={<BackofficePage />} />
         </Routes>
       </AppShell>
     </BrowserRouter>

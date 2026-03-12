@@ -14,11 +14,18 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Collections;
 
 public class CookieJwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(CookieJwtAuthenticationFilter.class);
+    private static final List<String> JWT_OPTIONAL_PATH_PREFIXES = List.of(
+            "/chat/admin",
+            "/chat/search",
+            "/chat/me",
+            "/actuator"
+    );
     private final JwtUtil jwtUtil;
 
     public CookieJwtAuthenticationFilter(JwtUtil jwtUtil) {
@@ -29,6 +36,14 @@ public class CookieJwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+        String requestUri = request.getRequestURI();
+        for (String prefix : JWT_OPTIONAL_PATH_PREFIXES) {
+            if (requestUri.startsWith(prefix)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+        }
+
         String token = null;
 
         Cookie[] cookies = request.getCookies();
@@ -42,11 +57,7 @@ public class CookieJwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         if (token == null) {
-            logger.warn("No JWT token found in cookies, redirecting to login.");
-            if (!request.getRequestURI().contains("/auth/login")) {
-                response.sendRedirect("/auth/login");
-                return;
-            }
+            logger.debug("No JWT token found in cookies for uri={}", requestUri);
         } else {
             try {
                 Claims claims = jwtUtil.extractAllClaims(token);
@@ -60,14 +71,10 @@ public class CookieJwtAuthenticationFilter extends OncePerRequestFilter {
                 } else {
                     logger.warn("JWT is invalid for email: {}", email);
                     SecurityContextHolder.clearContext();
-                    response.sendRedirect("/auth/login");
-                    return;
                 }
             } catch (Exception ex) {
                 logger.error("JWT validation error: {}", ex.getMessage());
                 SecurityContextHolder.clearContext();
-                response.sendRedirect("/auth/login");
-                return;
             }
         }
         filterChain.doFilter(request, response);

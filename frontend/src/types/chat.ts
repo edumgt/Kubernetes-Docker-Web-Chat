@@ -37,3 +37,45 @@ export type Profile = {
   profilePicUrl?: string;
 };
 
+export type AdminNodeStatus = {
+  name: string;
+  ready: boolean;
+  status: string;
+  role: string;
+  kubeletVersion: string;
+  internalIp: string;
+};
+
+export type AdminPodStatus = {
+  name: string;
+  namespace: string;
+  phase: string;
+  ready: string;
+  restartCount: number;
+  nodeName: string;
+  podIp: string;
+  app: string;
+  createdAt: string;
+};
+
+export type AdminChatMetrics = {
+  totalRoomCount: number;
+  privateRoomCount: number;
+  participantCount: number;
+};
+
+export type AdminOverview = {
+  generatedAt: string;
+  namespace: string;
+  apiServer: string;
+  chatMetrics: AdminChatMetrics;
+  nodes: AdminNodeStatus[];
+  pods: AdminPodStatus[];
+  podPhaseSummary: Record<string, number>;
+  kubernetesError?: string | null;
+};
+
+export type AdminSession = {
+  authenticated: boolean;
+  email: string;
+};
