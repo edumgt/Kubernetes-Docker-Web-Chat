@@ -1,6 +1,7 @@
 package org.example.oauth.controller;
 
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Controller;
@@ -9,6 +10,14 @@ import org.springframework.web.bind.annotation.GetMapping;
 
 @Controller
 public class LoginController {
+
+    private final String successRedirectUri;
+
+    public LoginController(
+            @Value("${app.auth.success-redirect-uri:http://localhost:9999/chat}") String successRedirectUri
+    ) {
+        this.successRedirectUri = successRedirectUri;
+    }
 
     @GetMapping("/login")
     public String login(Authentication authentication){
@@ -33,7 +42,7 @@ public class LoginController {
         model.addAttribute("username",name);
         model.addAttribute("email",email);
 
-        return "redirect:http://localhost:9999/chat";
+        return "redirect:" + successRedirectUri;
     }
 
     @GetMapping("/logout-success")

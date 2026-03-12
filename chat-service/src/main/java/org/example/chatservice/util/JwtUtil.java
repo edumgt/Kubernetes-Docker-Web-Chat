@@ -5,16 +5,29 @@ import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
+import java.security.Key;
 import java.util.Date;
 
 @Component
 public class JwtUtil {
 
-    private final String SECRET_KEY = "yourSuperSecretKeyYourSuperSecretKey";
-    private final long TOKEN_VALIDITY = 3600000; // 1 hour
+    private final Key signingKey;
+    private final long tokenValidity;
+
+    public JwtUtil(
+            @Value("${app.security.jwt.secret}") String secretKey,
+            @Value("${app.security.jwt.expiration-ms:3600000}") long tokenValidity
+    ) {
+        if (secretKey == null || secretKey.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException("JWT secret must be at least 32 bytes");
+        }
+        this.signingKey = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
+        this.tokenValidity = tokenValidity;
+    }
 
     public String generateToken(String email, String name, String provider) {
         return Jwts.builder()
@@ -22,15 +35,15 @@ public class JwtUtil {
                 .claim("name", name)
                 .claim("provider", provider)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + TOKEN_VALIDITY))
-                .signWith(Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8)), SignatureAlgorithm.HS256)
+                .setExpiration(new Date(System.currentTimeMillis() + tokenValidity))
+                .signWith(signingKey, SignatureAlgorithm.HS256)
                 .compact();
     }
 
     // Extract all claims from a token.
     public Claims extractAllClaims(String token) {
         Jws<Claims> jwsClaims = Jwts.parser()
-                .setSigningKey(Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8)))
+                .setSigningKey(signingKey)
                 .build()
                 .parseClaimsJws(token);
         return jwsClaims.getBody();
