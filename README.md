@@ -1,5 +1,5 @@
 # Kubernetes-Docker Web-Chat
-
+ 
 실시간 공개 채팅/개인 채팅을 제공하는 **Spring Boot 기반 마이크로서비스 애플리케이션**입니다.
 서비스를 기능 단위로 분리하고(API Gateway, 인증, 채팅, 프로필, 서비스 디스커버리), Docker/Kubernetes 배포를 고려한 구조로 구성되어 있습니다.
 
